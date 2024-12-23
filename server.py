@@ -69,14 +69,148 @@ class IoTServer:
 
         return metadata
 
-    def convert_moisture_to_rh(self, moisture_value, current_unit);
-    def convert_liters_to_gallons(self, liters);
-    def get_fridge_moisture(self, device_id, device_name);
-    def get_dishwasher_consumption(self);
-    def get_power_consumption(self);
-    def convert_to_pst(self, utc_time);
+    def convert_moisture_to_rh(self, moisture_value, current_unit):
+        """Convert moisture reading to Relative Humidity percentage"""
+        if current_unit == 'absolute':
+            # Convert absolute moisture to RH%
+            rh = (moisture_value / 100) * 100
+            return min(100, max(0, rh))
+        return moisture_value
 
-    def process_query(self, query);
+    def convert_liters_to_gallons(self, liters):
+        """Convert liters to gallons"""
+        return liters * 0.264172
+
+    def get_fridge_moisture(self, device_id, device_name):
+        """Get average moisture for the past 3 hours"""
+
+        current_time = datetime.now(timezone.utc)
+        three_hours_ago = current_time - timedelta(hours=3)
+        three_hours_ago_timestamp = int(three_hours_ago.timestamp())
+        print(f"Checking data from {three_hours_ago} to {current_time}")
+
+        print(f"Querying fridge_virtual collection for device ID: {
+            device_id}")
+        moisture_data = self.db.fridge_virtual.find({
+            'payload.parent_asset_uid': device_id,
+            'payload.timestamp': {'$gte': str(three_hours_ago_timestamp)}
+        })
+
+        readings = []
+        for data in moisture_data:
+            if device_name == 'garage_fridge':
+                sensor_key = 'garage_fridge Moisture Sensor'
+            elif device_name == 'kitchen_fridge':
+                sensor_key = 'kitchen_fridge Moisture Sensor'
+            else:
+                print(f"Skipping unknown device: {device_name}")
+                continue
+
+            print(f"Looking for sensor key: {sensor_key}")
+            if sensor_key in data['payload']:
+                sensor_value = float(data['payload'][sensor_key])
+                moisture_value = self.convert_moisture_to_rh(
+                    sensor_value,
+                    self.device_metadata[device_name]['moisture_unit']
+                )
+                readings.append(moisture_value)
+                print(f"Found reading: {moisture_value}% RH")
+            else:
+                print(f"Sensor key not found in payload")
+
+        print(f"Found {len(readings)} valid readings")
+        if readings:
+            avg = sum(readings) / len(readings)
+            print(f"Average moisture: {avg:.1f}% RH")
+            return avg
+        else:
+            print("No readings found, returning 0")
+            return 0
+
+    def get_dishwasher_consumption(self):
+        """Get average water consumption per cycle"""
+        device_id = self.device_metadata['dishwasher']['id']
+        print(f"\n=== Getting dishwasher consumption data ===")
+        print(f"Querying fridge_virtual collection for device ID: {device_id}")
+
+        # Query the data
+        cycles = self.db.fridge_virtual.find({
+            'payload.parent_asset_uid': device_id
+        })
+
+        total_consumption = 0
+        cycle_count = 0
+
+        sensor_key = 'dishwasher Water Sensor'
+        print(f"Looking for sensor key: {sensor_key}")
+
+        for cycle in cycles:
+            if sensor_key in cycle['payload']:
+                try:
+                    liters = float(cycle['payload'][sensor_key])
+                    gallons = self.convert_liters_to_gallons(liters)
+                    total_consumption += gallons
+                    cycle_count += 1
+                    print(f"Found water consumption: {gallons:.2f} gallons")
+                except ValueError:
+                    print(f"Invalid water consumption reading in document")
+
+        print(f"\nProcessed {cycle_count} cycles")
+
+        if cycle_count > 0:
+            avg_consumption = total_consumption / cycle_count
+            print(f"Average water consumption: {
+                  avg_consumption:.2f} gallons per cycle")
+            return avg_consumption
+        else:
+            print("No cycles found, returning 0")
+            return 0
+
+    def get_power_consumption(self):
+        """Compare power consumption between devices"""
+        devices = ['kitchen_fridge', 'garage_fridge', 'dishwasher']
+        consumption = {}
+
+        for device in devices:
+            device_id = self.device_metadata[device]['id']
+            power_data = self.db.fridge_virtual.find({
+                'payload.parent_asset_uid': device_id
+            })
+
+            total_watts = 0
+            doc_count = 0
+            print(f"\n=== Getting power data for {device} ===")
+
+            sensor_key = f"{device} Power Sensor"
+            print(f"Looking for sensor key: {sensor_key}")
+
+            for data in power_data:
+                if sensor_key in data['payload']:
+                    try:
+                        watts = float(data['payload'][sensor_key])
+                        total_watts += watts
+                        doc_count += 1
+                        print(f"Found power reading: {watts} watts")
+                    except ValueError:
+                        print(f"Invalid power reading in document")
+
+            kwh = total_watts / 1000 if doc_count > 0 else 0
+            consumption[device] = kwh
+            print(f"Total for {device}: {kwh:.2f} kWh")
+
+        max_device = max(consumption.items(), key=lambda x: x[1])
+        return max_device[0], consumption
+
+    def convert_to_pst(self, utc_time):
+        """Convert UTC time to PST"""
+        utc = pytz.timezone('UTC')
+        pst = pytz.timezone('America/Los_Angeles')
+        # Make sure input time is UTC aware if not already
+        if not utc_time.tzinfo:
+            utc_time = utc.localize(utc_time)
+        return utc_time.astimezone(pst)
+
+    def process_query(self, query):
         """Process incoming queries and return appropriate responses"""
         try:
             if "moisture inside my kitchen fridge" in query:
