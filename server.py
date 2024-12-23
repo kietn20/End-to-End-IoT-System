@@ -69,10 +69,45 @@ class IoTServer:
 
         return metadata
 
+    def convert_moisture_to_rh(self, moisture_value, current_unit);
+    def convert_liters_to_gallons(self, liters);
+    def get_fridge_moisture(self, device_id, device_name);
+    def get_dishwasher_consumption(self);
+    def get_power_consumption(self);
+    def convert_to_pst(self, utc_time);
 
+    def process_query(self, query);
+        """Process incoming queries and return appropriate responses"""
+        try:
+            if "moisture inside my kitchen fridge" in query:
+                avg_moisture = self.get_fridge_moisture(
+                    self.device_metadata['kitchen_fridge']['id'],
+                    'kitchen_fridge'
+                )
+                current_time_pst = self.convert_to_pst(
+                    datetime.now(timezone.utc))
+                return f"Average moisture in kitchen fridge: {avg_moisture:.1f}% RH (PST: {current_time_pst.strftime('%I:%M %p')})"
 
-    def process_query(self, query):
-        return "Response"
+            elif "water consumption per cycle in my smart dishwasher" in query:
+                avg_consumption = self.get_dishwasher_consumption()
+                current_time_pst = self.convert_to_pst(
+                    datetime.now(timezone.utc))
+                return f"Average water consumption per cycle: {avg_consumption:.2f} gallons (PST: {current_time_pst.strftime('%I:%M %p')})"
+
+            elif "consumed more electricity among my three IoT devices" in query:
+                max_device, consumption = self.get_power_consumption()
+                current_time_pst = self.convert_to_pst(
+                    datetime.now(timezone.utc))
+                consumption_str = ", ".join(
+                    f"{dev}: {cons:.2f} kWh" for dev, cons in consumption.items()
+                )
+                return f"Highest consumption: {max_device} ({consumption_str}) (PST: {current_time_pst.strftime('%I:%M %p')})"
+
+            else:
+                return "Invalid query. Please try one of the supported queries."
+
+        except Exception as e:
+            return f"Error processing query: {str(e)}"
 
     def start(self):
         """Start the TCP server"""
