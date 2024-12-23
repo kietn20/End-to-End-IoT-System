@@ -13,7 +13,7 @@ class IoTServer:
 
         load_dotenv()
 
-        db_uri = os.getenv('MONGODB_URI')
+        db_uri = os.getenv('MONGO_URI')
         if not db_uri:
             raise ValueError("MongoDB URI not found in environment variables")
 
