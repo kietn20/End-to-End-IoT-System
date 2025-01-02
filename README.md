@@ -1,4 +1,4 @@
-﻿## End to end IoT System
+﻿## End-to-End IoT Smart System with GCP Integration
 
 This project is an end-to-end IoT application for collecting and aggregating data from virtual IoT devices placed around the world.
 - Architected and implemented an end-to-end IoT system using MQTT protocol, achieving real-time data processing for virtual sensor networks while reducing bandwidth consumption by migrating from HTTP
