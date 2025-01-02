@@ -1,6 +1,11 @@
 ﻿## End to end IoT System
 
 This project is an end-to-end IoT application for collecting and aggregating data from virtual IoT devices placed around the world.
+- Architected and implemented an end-to-end IoT system using MQTT protocol, achieving real-time data processing for virtual sensor networks while reducing bandwidth consumption by migrating from HTTP
+- Led migration to Google Cloud infrastructure, implementing TCP client-server architecture and MongoDB integration for efficient IoT device data management and metadata processing
+- Engineered cloud-based data pipeline on GCP, incorporating caching mechanisms and optimized MongoDB queries for improved system performance
+- Designed publish-subscribe architecture handling multiple sensor types (moisture, temperature, water level, energy), enabling real-time data collection and analysis from distributed IoT devices
+- Implemented metadata-driven device management system in Python, creating efficient mappings between IoT devices and sensor data for automated processing and analysis
 
 **Our IoT system is a distributed application that leverages:**
 
